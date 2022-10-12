@@ -1,4 +1,4 @@
-//
+
 // Copyright (c) 2011-2019 Canonical Ltd
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -131,7 +131,7 @@ func (e *encoder) marshal(tag string, in reflect.Value) {
 		e.timev(tag, in)
 		return
 	case *time.Time:
-		e.timev(tag, in.Elem())
+		e.timev(tag, in.Elem()) // not working
 		return
 	case time.Duration:
 		e.stringv(tag, reflect.ValueOf(value.String()))
@@ -382,9 +382,18 @@ func (e *encoder) uintv(tag string, in reflect.Value) {
 	e.emitScalar(s, "", tag, yaml_PLAIN_SCALAR_STYLE, nil, nil, nil, nil)
 }
 
+// fix for issue #912
 func (e *encoder) timev(tag string, in reflect.Value) {
-	t := in.Interface().(time.Time)
-	s := t.Format(time.RFC3339Nano)
+	var s string
+	if t, ok := in.Interface().(time.Time); ok { // check if it's time.Time
+		s = t.Format(time.RFC3339Nano)
+	} else {// above failed it should be *time.Time
+		if tPtr, ok := in.Interface().(*time.Time); ok {
+			s = tPtr.Format(time.RFC3339Nano)
+		} else { // this shall never happen
+			s = fmt.Sprintf("%v", in.Interface())
+		}
+	}
 	e.emitScalar(s, "", tag, yaml_PLAIN_SCALAR_STYLE, nil, nil, nil, nil)
 }
 
